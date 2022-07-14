@@ -37,7 +37,7 @@ void writeCalibration(int cell, int value) {
 }
 
 void loop() {
-  while (Serial.available()) {
+  if (Serial.available()) {
     sym = Serial.read();
     buf += sym;
     if (buf.endsWith("END")) {
@@ -49,24 +49,25 @@ void loop() {
         average += cell3.get_units(3);
         average += cell4.get_units(4);
         average /= 4;
-        Serial.print("AWR");
+        Serial.print("AW");
         Serial.print(average);
-        Serial.println("END");
+        Serial.print("END");
       } else if (buf.startsWith("W")) {
-        Serial.print("WF");
+        Serial.print("WA");
         Serial.print(cell1.get_units(1));
-        Serial.print("S");
+        Serial.print("B");
         Serial.print(cell2.get_units(1));
-        Serial.print("T");
+        Serial.print("C");
         Serial.print(cell3.get_units(1));
-        Serial.print("F");
+        Serial.print("D");
         Serial.print(cell4.get_units(1));
+        Serial.print("END");
       } else if (buf.startsWith("TARE")) {
         cell1.tare();
         cell2.tare();
         cell3.tare();
         cell4.tare();
-        Serial.println("TAREEND");
+        Serial.print("TAREEND");
       } else if (buf.startsWith("GETCAL")) {
         int index = buf[6] - '0';
         if (index < 1 || index > 4) {
@@ -104,7 +105,6 @@ void loop() {
         }
       }
       buf = "";
-      break;
     }
   }
 }
