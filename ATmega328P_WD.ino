@@ -45,9 +45,9 @@ void loop() {
       if (buf.startsWith("AW")) {
         float average = 0.0;
         average += cell1.get_units(1);
-        average += cell2.get_units(2);
-        average += cell3.get_units(3);
-        average += cell4.get_units(4);
+        average += cell2.get_units(1);
+        average += cell3.get_units(1);
+        average += cell4.get_units(1);
         average /= 4;
         Serial.print("AW");
         Serial.print(average);
