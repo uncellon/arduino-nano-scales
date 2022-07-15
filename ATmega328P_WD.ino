@@ -1,28 +1,43 @@
+#include "CRC16.h"
 #include "HX711.h"
 #include <EEPROM.h>
 
-HX711 cell1;
-HX711 cell2;
-HX711 cell3;
-HX711 cell4;
+#define SENSOR_A_DOUT 2
+#define SENSOR_A_SCK 3
 
-char sym;
+#define SENSOR_B_DOUT 4
+#define SENSOR_B_SCK 5
+
+#define SENSOR_C_DOUT 6
+#define SENSOR_C_SCK 7
+
+#define SENSOR_D_DOUT 8
+#define SENSOR_D_SCK 9
+
+#define CRC_POLYNOME 0x8005
+
+HX711 sensorA;
+HX711 sensorB;
+HX711 sensorC;
+HX711 sensorD;
 String buf;
+String reply;
+char sym;
 
 void setup() {
   Serial.begin(115200);
   
-  cell1.begin(3, 2);
-  cell1.set_scale(readCalibration(1));
+  sensorA.begin(SENSOR_A_DOUT, SENSOR_A_SCK);
+  sensorA.set_scale(readCalibration(1));
   
-  cell2.begin(5, 4);
-  cell2.set_scale(readCalibration(2));
+  sensorB.begin(SENSOR_B_DOUT, SENSOR_B_SCK);
+  sensorB.set_scale(readCalibration(2));
   
-  cell3.begin(7, 6);
-  cell3.set_scale(readCalibration(3));
+  sensorC.begin(SENSOR_C_DOUT, SENSOR_C_SCK);
+  sensorC.set_scale(readCalibration(3));
   
-  cell4.begin(9, 8);
-  cell4.set_scale(readCalibration(4));
+  sensorD.begin(SENSOR_D_DOUT, SENSOR_D_SCK);
+  sensorD.set_scale(readCalibration(4));
 }
 
 int readCalibration(int cell) {
@@ -36,75 +51,96 @@ void writeCalibration(int cell, int value) {
   EEPROM.write(1 + (cell - 1) * 2, value & 0xFF);
 }
 
-void loop() {
-  if (Serial.available()) {
-    sym = Serial.read();
-    buf += sym;
-    if (buf.endsWith("END")) {
-      // Process request
-      if (buf.startsWith("AW")) {
-        float average = 0.0;
-        average += cell1.get_units(1);
-        average += cell2.get_units(1);
-        average += cell3.get_units(1);
-        average += cell4.get_units(1);
-        average /= 4;
-        Serial.print("AW");
-        Serial.print(average);
-        Serial.print("END");
-      } else if (buf.startsWith("W")) {
-        Serial.print("WA");
-        Serial.print(cell1.get_units(1));
-        Serial.print("B");
-        Serial.print(cell2.get_units(1));
-        Serial.print("C");
-        Serial.print(cell3.get_units(1));
-        Serial.print("D");
-        Serial.print(cell4.get_units(1));
-        Serial.print("END");
-      } else if (buf.startsWith("TARE")) {
-        cell1.tare();
-        cell2.tare();
-        cell3.tare();
-        cell4.tare();
-        Serial.print("TAREEND");
-      } else if (buf.startsWith("GETCAL")) {
-        int index = buf[6] - '0';
-        if (index < 1 || index > 4) {
-          Serial.print("GETCALERREND");
-        } else {
-          Serial.print("GETCAL");
-          Serial.print(index);
-          Serial.print(readCalibration(index));
-          Serial.print("END");
-        }
-      } else if (buf.startsWith("SETCAL")) {
-        int index = buf[6] - '0';
-        if (index < 1 || index > 4) {
-          Serial.print("SETCALERREND");
-        } else {
-          int value = buf.substring(7, buf.indexOf("END")).toInt();
-          writeCalibration(index, value);
-          switch (index) {
-          case 1:
-            cell1.set_scale(value);
-            break;
-          case 2:
-            cell2.set_scale(value);
-            break;
-          case 3:
-            cell3.set_scale(value);
-            break;
-          case 4:
-            cell4.set_scale(value);
-            break;
-          }
-          Serial.print("SETCAL");
-          Serial.print(index);
-          Serial.print("END");
-        }
-      }
-      buf = "";
-    }
+uint16_t replyCRC(const String source, int begin = 0, int end = 0) {
+  CRC16 crc;
+  crc.setPolynome(CRC_POLYNOME);
+  int e = end ? end : source.length();
+  for (int i = begin; i < e; ++i) {
+    crc.add(source[i]);
   }
+  return crc.getCRC();
+}
+
+void loop() {  
+  if (!Serial.available()) {
+    return;
+  }
+
+  sym = Serial.read();
+  buf += sym;
+
+  if (!buf.endsWith("ND")) {
+    return;
+  }
+
+  // Process request
+  if (buf.startsWith("W")) { // Weight request from all sensors
+    reply = "W";
+    reply += "A";
+    reply += sensorA.get_units(1);
+    reply += "B";
+    reply += sensorB.get_units(1);
+    reply += "C";
+    reply += sensorC.get_units(1);
+    reply += "D";
+    reply += sensorD.get_units(1);
+    reply += "H";
+    reply += replyCRC(reply);
+    Serial.print("ST" + reply + "ND");
+  } else if (buf.startsWith("AW")) { // Average weight
+    float average = 0.0;
+    average += sensorA.get_units(1);
+    average += sensorB.get_units(1);
+    average += sensorC.get_units(1);
+    average += sensorD.get_units(1);
+    average /= 4;
+    reply = "AW";
+    reply += average;
+    reply += "H";
+    reply += replyCRC(reply);
+    Serial.print("ST" + reply + "ND");
+  } else if (buf.startsWith("TARE")) {
+    sensorA.tare();
+    sensorB.tare();
+    sensorC.tare();
+    sensorD.tare();
+    Serial.print("STTAREND");
+  } else if (buf.startsWith("GETCAL")) {
+    int index = buf[6] - '0';
+    if (index < 1 || index > 4) { // Invalid sensor index
+      Serial.print("STGETCALERRND");
+      return;
+    }
+    Serial.print("STGETCAL");
+    Serial.print(index);
+    Serial.print(readCalibration(index));
+    Serial.print("ND");
+  } else if (buf.startsWith("SETCAL")) {
+    int index = buf[6] - '0';
+    if (index < 1 || index > 4) { // Invalid sensor index
+      Serial.print("STSETCALERRND");
+      return;
+    } 
+    int value = buf.substring(7, buf.indexOf("ND")).toInt();
+    writeCalibration(index, value);
+    switch (index) {
+    case 1:
+      sensorA.set_scale(value);
+      break;
+    case 2:
+      sensorB.set_scale(value);
+      break;
+    case 3:
+      sensorC.set_scale(value);
+      break;
+    case 4:
+      sensorD.set_scale(value);
+      break;
+    }
+    Serial.print("STSETCAL");
+    Serial.print(index);
+    Serial.print("ND");
+  }
+
+  buf = "";
 }
