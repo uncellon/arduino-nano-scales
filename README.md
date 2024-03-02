@@ -1,8 +1,13 @@
-# ATmega328P weighing device
+# Arduino Nano Scales
+
+- [Description](#description)
+- [Dependencies](#dependencies)
+- [Wiring scheme](#wiring-scheme)
+- [Usage examples](#usage-examples)
 
 ## Description
 
-This firmware makes it possible to make a weighing device using 4 HX711 ADCs.
+Arduino sketch for creating a four-channel scales based on HX711 ADC.
 
 Main features:
 - Get average weight
@@ -10,7 +15,16 @@ Main features:
 - Taring
 - Calibration with saving values in EEPROM
 
-## Examples
+## Prerequisites
+
+- [HX711 Library](https://github.com/RobTillaart/HX711) >= 0.3.9
+- [CRC Library](https://github.com/RobTillaart/CRC) >= 1.0.2
+
+## Wiring scheme
+
+![Wiring scheme](wiring-scheme.png "Wiring scheme")
+
+## Usage examples
 
 ### Average weight request
 
@@ -86,3 +100,15 @@ Error:
 ```
 SETCALERREND
 ```
+
+## License
+
+<img align="right" src="https://www.gnu.org/graphics/lgplv3-with-text-154x68.png">
+
+The library is licensed under [GNU Lesser General Public License 3.0](https://www.gnu.org/licenses/lgpl-3.0.txt):
+
+Copyright © 2023 Dmitry Plastinin
+
+UToolbox Timers is free software: you can redistribute it and/or modify it under the terms of the GNU Lesser General Public License as pubblished by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+
+UToolbox Timers is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU Lesser Public License for more details
